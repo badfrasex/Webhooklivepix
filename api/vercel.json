@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "builds": [{
+    "src": "api/livepix.py",
+    "use": "@vercel/python"
+  }],
+  "routes": [{
+    "src": "/webhook",
+    "dest": "/api/livepix.py"
+  }]
+}
