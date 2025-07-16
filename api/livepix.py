@@ -1,42 +1,29 @@
 from http.server import BaseHTTPRequestHandler
+import os
+import json
+import requests
 import hmac
 import hashlib
-import json
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        # 1. Configuração de segurança
-        WEBHOOK_SECRET = "SUA_CHAVE_SECRETA"  # ⚠️ MESMA do Dashboard LivePix
-        BOT_URL = "https://seubot.com/webhook"  # URL do seu bot externo
-        
-        # 2. Verificar assinatura
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        signature = self.headers['X-Livepix-Signature']
-        
-        # 3. Cálculo HMAC
-        hmac_calculado = hmac.new(
-            WEBHOOK_SECRET.encode(),
-            post_data,
-            hashlib.sha256
-        ).hexdigest()
+        length = int(self.headers.get('content-length'))
+        body = self.rfile.read(length)
+        payload = json.loads(body)
 
-        if not hmac.compare_digest(signature, hmac_calculado):
-            self.send_response(403)
-            return self.wfile.write(b"Assinatura inválida")
+        # Se quiser segurança com HMAC, adicione aqui
 
-        # 4. Processar evento
-        data = json.loads(post_data)
-        if data['event'] == 'payment.completed':
-            payment_id = data['resource']['externalReference']
-            
-            # 5. Encaminhar para seu backend (opcional)
-            import requests
-            requests.post(BOT_URL, json={
-                "payment_id": payment_id,
-                "status": "paid"
-            }, timeout=5)
+        valor = payload.get("valor")
+        produto = payload.get("descricao", "Produto")
+        nome = payload.get("cliente", {}).get("nome", "Cliente")
+        bot_token = os.getenv("7200052677:AAH5flHQqewPMCV9Q8N9hoTlKSjNxciV9lg")
+        chat_id = os.getenv("7722803509")
 
-        # 6. Responder sucesso
+        msg = f"💸 Pagamento confirmado!\n👤 {nome}\n📦 Produto: {produto}\n💰 Valor: R${valor:.2f}"
+        requests.get(f"https://api.telegram.org/bot{bot_token}/sendMessage", params={
+            "chat_id": chat_id,
+            "text": msg
+        })
+
         self.send_response(200)
-        self.wfile.write(b"Webhook processado")
+        self.end_headers()
